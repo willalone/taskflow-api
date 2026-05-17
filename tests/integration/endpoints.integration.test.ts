@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import request from 'supertest';
+import { TeamRole, ProjectRole } from '@prisma/client';
 import { createApp } from '../../src/app.js';
 import { prisma } from '../../src/shared/lib/prisma.js';
 import { authHeader, login } from '../helpers/auth.js';
@@ -152,6 +153,15 @@ describe.skipIf(!run)('API integration', () => {
   });
 
   describe('Projects', () => {
+    it('adds seed member to integration team', async () => {
+      const member = await prisma.user.findUnique({ where: { email: 'member@taskflow.dev' } });
+      await prisma.teamMember.upsert({
+        where: { teamId_userId: { teamId, userId: member!.id } },
+        create: { teamId, userId: member!.id, role: TeamRole.MEMBER },
+        update: { role: TeamRole.MEMBER },
+      });
+    });
+
     it('POST /projects/teams/:teamId', async () => {
       const res = await request(app)
         .post(`/api/v1/projects/teams/${teamId}`)
@@ -180,8 +190,8 @@ describe.skipIf(!run)('API integration', () => {
       const res = await request(app)
         .post(`/api/v1/projects/${projectId}/members`)
         .set(authHeader(adminToken))
-        .send({ userId: member!.id, role: 'DEVELOPER' });
-      expect([200, 201]).toContain(res.status);
+        .send({ userId: member!.id, role: ProjectRole.DEVELOPER });
+      expect(res.status).toBe(201);
     });
   });
 
@@ -282,14 +292,14 @@ describe.skipIf(!run)('API integration', () => {
   });
 
   describe('Negative auth', () => {
+    it('rejects invalid login body', async () => {
+      const res = await request(app).post('/api/v1/auth/login').send({ email: 'not-email' });
+      expect(res.status).toBe(400);
+    });
+
     it('rejects missing token', async () => {
       const res = await request(app).get('/api/v1/teams');
       expect(res.status).toBe(401);
-    });
-
-    it('rejects invalid body', async () => {
-      const res = await request(app).post('/api/v1/auth/login').send({ email: 'not-email' });
-      expect(res.status).toBe(400);
     });
   });
 });

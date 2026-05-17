@@ -7,7 +7,19 @@ export function validate(schema: ZodSchema, source: 'body' | 'query' | 'params' 
     if (!result.success) {
       return next(result.error);
     }
-    req[source] = result.data;
+
+    if (source === 'body') {
+      req.body = result.data;
+    } else {
+      // Express 5 exposes query/params as read-only getters — replace via defineProperty
+      Object.defineProperty(req, source, {
+        value: result.data,
+        writable: true,
+        configurable: true,
+        enumerable: true,
+      });
+    }
+
     next();
   };
 }

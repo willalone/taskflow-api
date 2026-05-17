@@ -137,30 +137,35 @@ export class TaskService {
     const { page, limit, skip } = parsePagination(query);
     if (!teamIds.length) return paginatedResponse([], 0, page, limit);
 
+    const scopeWhere: Prisma.TaskWhereInput = query.projectId
+      ? { projectId: query.projectId }
+      : { project: { teamId: { in: teamIds } } };
+
     if (query.projectId) {
       await this.getProjectContext(query.projectId, userId);
     }
 
-    const teamIdSql = Prisma.join(teamIds.map((id) => Prisma.sql`${id}::uuid`));
+    const scopedIds = (
+      await prisma.task.findMany({
+        where: scopeWhere,
+        select: { id: true },
+      })
+    ).map((t) => t.id);
+
+    if (!scopedIds.length) return paginatedResponse([], 0, page, limit);
+
+    const idList = Prisma.join(scopedIds.map((id) => Prisma.sql`${id}`));
     const tsQuery = Prisma.sql`plainto_tsquery('english', ${q})`;
     const tsVector = Prisma.sql`to_tsvector('english', coalesce(t.title, '') || ' ' || coalesce(t.description, ''))`;
 
-    const rows = query.projectId
-      ? await prisma.$queryRaw<Array<{ id: string }>>`
-          SELECT t.id FROM "Task" t
-          WHERE t."projectId" = ${query.projectId}::uuid
-            AND ${tsVector} @@ ${tsQuery}
-          ORDER BY ts_rank(${tsVector}, ${tsQuery}) DESC
-          LIMIT ${limit} OFFSET ${skip}
-        `
-      : await prisma.$queryRaw<Array<{ id: string }>>`
-          SELECT t.id FROM "Task" t
-          INNER JOIN "Project" p ON p.id = t."projectId"
-          WHERE p."teamId" IN (${teamIdSql})
-            AND ${tsVector} @@ ${tsQuery}
-          ORDER BY ts_rank(${tsVector}, ${tsQuery}) DESC
-          LIMIT ${limit} OFFSET ${skip}
-        `;
+    const rows = await prisma.$queryRaw<Array<{ id: string }>>`
+      SELECT t.id
+      FROM "Task" t
+      WHERE t.id IN (${idList})
+        AND ${tsVector} @@ ${tsQuery}
+      ORDER BY ts_rank(${tsVector}, ${tsQuery}) DESC
+      LIMIT ${limit} OFFSET ${skip}
+    `;
 
     const ids = rows.map((r) => r.id);
     const tasks = ids.length
@@ -173,20 +178,16 @@ export class TaskService {
         })
       : [];
 
-    const ordered = ids.map((id) => tasks.find((t) => t.id === id)).filter(Boolean);
+    const ordered = ids
+      .map((id) => tasks.find((t) => t.id === id))
+      .filter((t): t is NonNullable<typeof t> => t != null);
 
-    const countResult = query.projectId
-      ? await prisma.$queryRaw<[{ count: bigint }]>`
-          SELECT COUNT(*)::bigint AS count FROM "Task" t
-          WHERE t."projectId" = ${query.projectId}::uuid
-            AND ${tsVector} @@ ${tsQuery}
-        `
-      : await prisma.$queryRaw<[{ count: bigint }]>`
-          SELECT COUNT(*)::bigint AS count FROM "Task" t
-          INNER JOIN "Project" p ON p.id = t."projectId"
-          WHERE p."teamId" IN (${teamIdSql})
-            AND ${tsVector} @@ ${tsQuery}
-        `;
+    const countResult = await prisma.$queryRaw<[{ count: bigint }]>`
+      SELECT COUNT(*)::bigint AS count
+      FROM "Task" t
+      WHERE t.id IN (${idList})
+        AND ${tsVector} @@ ${tsQuery}
+    `;
 
     const total = Number(countResult[0]?.count ?? 0);
     return paginatedResponse(ordered, total, page, limit);

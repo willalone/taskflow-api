@@ -15,14 +15,22 @@ export function parsePagination(query: PaginationParams, defaults = { page: 1, l
   return { page, limit, skip, sortOrder, sortBy: query.sortBy };
 }
 
+export interface PaginationMeta {
+  page: number;
+  limit: number;
+  total: number;
+  totalCount: number;
+  totalPages: number;
+}
+
 export function paginatedResponse<T>(data: T[], total: number, page: number, limit: number) {
-  return {
-    data,
-    meta: {
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    },
+  const totalPages = limit > 0 ? Math.ceil(total / limit) : 0;
+  const meta: PaginationMeta = {
+    page,
+    limit,
+    total,
+    totalCount: total,
+    totalPages,
   };
+  return { data, meta };
 }

@@ -38,6 +38,24 @@ components:
               type: string
             message:
               type: string
+    PaginationMeta:
+      type: object
+      properties:
+        page: { type: integer, example: 1 }
+        limit: { type: integer, example: 20 }
+        total: { type: integer, description: Total matching records }
+        totalCount: { type: integer, description: Alias of total }
+        totalPages: { type: integer, example: 3 }
+    PaginatedTaskList:
+      allOf:
+        - $ref: '#/components/schemas/SuccessResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { type: object }
+            meta:
+              $ref: '#/components/schemas/PaginationMeta'
 paths:
   /auth/register:
     post:
@@ -293,14 +311,35 @@ paths:
       responses:
         '200':
           description: Paginated search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedTaskList'
   /tasks/projects/{projectId}:
     get:
       tags: [Tasks]
       security: [{ bearerAuth: [] }]
       summary: List project tasks
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100 }
+        - name: status
+          in: query
+          schema: { type: string, enum: [TODO, IN_PROGRESS, DONE] }
+        - name: priority
+          in: query
+          schema: { type: string, enum: [LOW, MEDIUM, HIGH] }
       responses:
         '200':
-          description: OK
+          description: Paginated task list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedTaskList'
     post:
       tags: [Tasks]
       security: [{ bearerAuth: [] }]

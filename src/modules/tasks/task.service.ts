@@ -135,9 +135,8 @@ export class TaskService {
       select: { teamId: true },
     });
     const teamIds = memberships.map((m) => m.teamId);
-    if (!teamIds.length) return paginatedResponse([], 0, 1, 20);
-
     const { page, limit, skip } = parsePagination(query);
+    if (!teamIds.length) return paginatedResponse([], 0, page, limit);
 
     const rows = query.projectId
       ? await prisma.$queryRaw<Array<{ id: string }>>`

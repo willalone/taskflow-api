@@ -217,14 +217,22 @@ describe.skipIf(!run)('API integration', () => {
       expect(res.status).toBe(200);
       expect(res.body.meta.page).toBe(1);
       expect(res.body.meta.limit).toBe(100);
+      expect(res.body.meta.totalCount).toBeGreaterThanOrEqual(0);
+      expect(res.body.meta.totalPages).toBeGreaterThanOrEqual(0);
     });
 
-    it('GET /tasks/search', async () => {
+    it('GET /tasks/search returns pagination meta', async () => {
       const res = await request(app)
         .get('/api/v1/tasks/search')
         .query({ q: 'release' })
         .set(authHeader(adminToken));
       expect(res.status).toBe(200);
+      expect(res.body.meta).toMatchObject({
+        page: expect.any(Number),
+        limit: expect.any(Number),
+        totalCount: expect.any(Number),
+        totalPages: expect.any(Number),
+      });
     });
 
     it('GET /tasks/:taskId', async () => {

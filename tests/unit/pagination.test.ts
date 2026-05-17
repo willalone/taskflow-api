@@ -30,8 +30,14 @@ describe('parsePagination', () => {
 });
 
 describe('paginatedResponse', () => {
-  it('includes totalPages in meta', () => {
+  it('includes totalCount and totalPages in meta', () => {
     const result = paginatedResponse([1, 2], 25, 2, 10);
-    expect(result.meta).toEqual({ total: 25, page: 2, limit: 10, totalPages: 3 });
+    expect(result.meta).toEqual({
+      total: 25,
+      totalCount: 25,
+      page: 2,
+      limit: 10,
+      totalPages: 3,
+    });
   });
 });

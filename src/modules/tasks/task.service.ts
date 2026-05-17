@@ -6,7 +6,6 @@ import {
   canCreateTask,
   canEditTask,
   getProjectMembership,
-  requireProjectMember,
   requireTeamMember,
 } from './permissions.service.js';
 import {
@@ -138,28 +137,28 @@ export class TaskService {
     const { page, limit, skip } = parsePagination(query);
     if (!teamIds.length) return paginatedResponse([], 0, page, limit);
 
+    if (query.projectId) {
+      await this.getProjectContext(query.projectId, userId);
+    }
+
+    const teamIdSql = Prisma.join(teamIds.map((id) => Prisma.sql`${id}::uuid`));
+    const tsQuery = Prisma.sql`plainto_tsquery('english', ${q})`;
+    const tsVector = Prisma.sql`to_tsvector('english', coalesce(t.title, '') || ' ' || coalesce(t.description, ''))`;
+
     const rows = query.projectId
       ? await prisma.$queryRaw<Array<{ id: string }>>`
           SELECT t.id FROM "Task" t
-          WHERE t."projectId" = ${query.projectId}
-            AND to_tsvector('english', coalesce(t.title, '') || ' ' || coalesce(t.description, ''))
-              @@ plainto_tsquery('english', ${q})
-          ORDER BY ts_rank(
-            to_tsvector('english', coalesce(t.title, '') || ' ' || coalesce(t.description, '')),
-            plainto_tsquery('english', ${q})
-          ) DESC
+          WHERE t."projectId" = ${query.projectId}::uuid
+            AND ${tsVector} @@ ${tsQuery}
+          ORDER BY ts_rank(${tsVector}, ${tsQuery}) DESC
           LIMIT ${limit} OFFSET ${skip}
         `
       : await prisma.$queryRaw<Array<{ id: string }>>`
           SELECT t.id FROM "Task" t
           INNER JOIN "Project" p ON p.id = t."projectId"
-          WHERE p."teamId" = ANY(${teamIds}::uuid[])
-            AND to_tsvector('english', coalesce(t.title, '') || ' ' || coalesce(t.description, ''))
-              @@ plainto_tsquery('english', ${q})
-          ORDER BY ts_rank(
-            to_tsvector('english', coalesce(t.title, '') || ' ' || coalesce(t.description, '')),
-            plainto_tsquery('english', ${q})
-          ) DESC
+          WHERE p."teamId" IN (${teamIdSql})
+            AND ${tsVector} @@ ${tsQuery}
+          ORDER BY ts_rank(${tsVector}, ${tsQuery}) DESC
           LIMIT ${limit} OFFSET ${skip}
         `;
 
@@ -179,16 +178,14 @@ export class TaskService {
     const countResult = query.projectId
       ? await prisma.$queryRaw<[{ count: bigint }]>`
           SELECT COUNT(*)::bigint AS count FROM "Task" t
-          WHERE t."projectId" = ${query.projectId}
-            AND to_tsvector('english', coalesce(t.title, '') || ' ' || coalesce(t.description, ''))
-              @@ plainto_tsquery('english', ${q})
+          WHERE t."projectId" = ${query.projectId}::uuid
+            AND ${tsVector} @@ ${tsQuery}
         `
       : await prisma.$queryRaw<[{ count: bigint }]>`
           SELECT COUNT(*)::bigint AS count FROM "Task" t
           INNER JOIN "Project" p ON p.id = t."projectId"
-          WHERE p."teamId" = ANY(${teamIds}::uuid[])
-            AND to_tsvector('english', coalesce(t.title, '') || ' ' || coalesce(t.description, ''))
-              @@ plainto_tsquery('english', ${q})
+          WHERE p."teamId" IN (${teamIdSql})
+            AND ${tsVector} @@ ${tsQuery}
         `;
 
     const total = Number(countResult[0]?.count ?? 0);
@@ -209,7 +206,7 @@ export class TaskService {
       },
     });
     if (!task) throw AppError.notFound('Task not found');
-    await requireProjectMember(task.projectId, userId);
+    await requireTeamMember(task.project.teamId, userId);
     return task;
   }
 
@@ -299,9 +296,12 @@ export class TaskService {
   }
 
   async addComment(taskId: string, userId: string, content: string) {
-    const task = await prisma.task.findUnique({ where: { id: taskId } });
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      include: { project: true },
+    });
     if (!task) throw AppError.notFound('Task not found');
-    await requireProjectMember(task.projectId, userId);
+    await requireTeamMember(task.project.teamId, userId);
 
     return prisma.comment.create({
       data: { taskId, authorId: userId, content },
@@ -310,9 +310,12 @@ export class TaskService {
   }
 
   async listComments(taskId: string, userId: string) {
-    const task = await prisma.task.findUnique({ where: { id: taskId } });
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      include: { project: true },
+    });
     if (!task) throw AppError.notFound('Task not found');
-    await requireProjectMember(task.projectId, userId);
+    await requireTeamMember(task.project.teamId, userId);
 
     return prisma.comment.findMany({
       where: { taskId },

@@ -234,7 +234,7 @@ describe.skipIf(!run)('API integration', () => {
     it('GET /tasks/search returns pagination meta', async () => {
       const res = await request(app)
         .get('/api/v1/tasks/search')
-        .query({ q: 'release' })
+        .query({ q: 'release', projectId })
         .set(authHeader(adminToken));
       expect(res.status).toBe(200);
       expect(res.body.meta).toMatchObject({

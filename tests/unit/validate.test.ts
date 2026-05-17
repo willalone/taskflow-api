@@ -8,7 +8,7 @@ describe('validate middleware', () => {
     const schema = z.object({ page: z.coerce.number() });
     const middleware = validate(schema, 'query');
 
-    const req = { query: { page: '2' } } as Request;
+    const req = { query: { page: '2' } } as unknown as Request;
     const next = vi.fn();
 
     middleware(req, {} as Response, next as NextFunction);

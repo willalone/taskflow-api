@@ -29,6 +29,11 @@ async function getTransporter() {
 }
 
 export async function sendEmail(to: string, subject: string, html: string) {
+  if (env.NODE_ENV === 'test') {
+    logger.debug({ to, subject }, 'Email skipped in test');
+    return { messageId: 'test' };
+  }
+
   const transport = await getTransporter();
   const info = await transport.sendMail({
     from: env.SMTP_FROM,

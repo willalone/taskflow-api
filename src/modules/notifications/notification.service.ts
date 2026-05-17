@@ -3,12 +3,7 @@ import { prisma } from '../../shared/lib/prisma.js';
 import { sendEmail } from '../../shared/services/email.service.js';
 
 export class NotificationService {
-  async createInApp(
-    userId: string,
-    type: NotificationType,
-    content: string,
-    metadata?: object,
-  ) {
+  async createInApp(userId: string, type: NotificationType, content: string, metadata?: object) {
     return prisma.notification.create({
       data: { userId, type, content, metadata: metadata ?? undefined },
     });

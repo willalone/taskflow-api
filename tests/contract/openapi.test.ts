@@ -16,6 +16,8 @@ describe('OpenAPI contract', () => {
     expect(spec.paths['/auth/register']?.post).toBeDefined();
     expect(spec.paths['/auth/login']?.post).toBeDefined();
     expect(spec.paths['/auth/refresh']?.post).toBeDefined();
+    expect(spec.paths['/auth/forgot-password']?.post).toBeDefined();
+    expect(spec.paths['/auth/reset-password']?.post).toBeDefined();
     expect(spec.paths['/tasks/search']?.get).toBeDefined();
     expect(spec.paths['/teams/{teamId}/members/{userId}']?.delete).toBeDefined();
   });

@@ -6,7 +6,6 @@ import {
   canCreateTask,
   canEditTask,
   getProjectMembership,
-  getTeamMembership,
   requireProjectMember,
   requireTeamMember,
 } from './permissions.service.js';

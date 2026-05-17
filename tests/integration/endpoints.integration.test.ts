@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../../src/app.js';
 import { prisma } from '../../src/shared/lib/prisma.js';
-import { authHeader, login, registerAndActivate } from '../helpers/auth.js';
+import { authHeader, login } from '../helpers/auth.js';
 
 const run = process.env.CI === 'true' || process.env.RUN_INTEGRATION === 'true';
 
@@ -52,6 +52,35 @@ describe.skipIf(!run)('API integration', () => {
         .post('/api/v1/auth/forgot-password')
         .send({ email: 'admin@taskflow.dev' });
       expect(res.status).toBe(200);
+    });
+
+    it('POST /auth/reset-password', async () => {
+      const email = `reset-${Date.now()}@taskflow.dev`;
+      await request(app)
+        .post('/api/v1/auth/register')
+        .send({ email, password: 'Password123!', name: 'Reset User' });
+      await prisma.user.update({ where: { email }, data: { isActive: true } });
+
+      await request(app).post('/api/v1/auth/forgot-password').send({ email });
+      const user = await prisma.user.findUnique({ where: { email } });
+      expect(user?.passwordResetToken).toBeTruthy();
+
+      const res = await request(app)
+        .post('/api/v1/auth/reset-password')
+        .send({ token: user!.passwordResetToken, newPassword: 'NewPassword123!' });
+      expect(res.status).toBe(200);
+
+      const login = await request(app)
+        .post('/api/v1/auth/login')
+        .send({ email, password: 'NewPassword123!' });
+      expect(login.status).toBe(200);
+    });
+
+    it('POST /auth/reset-password rejects bad token', async () => {
+      const res = await request(app)
+        .post('/api/v1/auth/reset-password')
+        .send({ token: 'invalid', newPassword: 'NewPassword123!' });
+      expect(res.status).toBe(400);
     });
 
     it('POST /auth/change-password rejects wrong current', async () => {
@@ -178,6 +207,16 @@ describe.skipIf(!run)('API integration', () => {
         .set(authHeader(memberToken));
       expect(res.status).toBe(200);
       expect(res.body.data.length).toBeGreaterThan(0);
+    });
+
+    it('GET /tasks/projects/:projectId clamps pagination', async () => {
+      const res = await request(app)
+        .get(`/api/v1/tasks/projects/${projectId}`)
+        .query({ page: -1, limit: 999 })
+        .set(authHeader(adminToken));
+      expect(res.status).toBe(200);
+      expect(res.body.meta.page).toBe(1);
+      expect(res.body.meta.limit).toBe(100);
     });
 
     it('GET /tasks/search', async () => {

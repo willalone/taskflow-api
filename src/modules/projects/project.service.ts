@@ -39,11 +39,7 @@ export class ProjectService {
     return project;
   }
 
-  async update(
-    projectId: string,
-    userId: string,
-    data: { name?: string; description?: string },
-  ) {
+  async update(projectId: string, userId: string, data: { name?: string; description?: string }) {
     const project = await prisma.project.findUnique({ where: { id: projectId } });
     if (!project) throw AppError.notFound('Project not found');
     await requireTeamAdmin(project.teamId, userId);

@@ -30,6 +30,8 @@ jobs:
           - 6379:6379
 
     env:
+      CI: true
+      HUSKY: 0
       NODE_ENV: test
       PORT: 3000
       APP_URL: http://localhost:3000
@@ -45,9 +47,9 @@ jobs:
           node-version: '20'
           cache: npm
       - run: npm ci
+      - run: npm run db:generate
       - run: npx prisma migrate deploy
       - run: npm run db:seed
-      - run: npm run db:generate
       - run: npm run format:check
       - run: npm run lint
       - run: npm run openapi:validate

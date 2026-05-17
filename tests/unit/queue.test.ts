@@ -16,7 +16,8 @@ describe('notifications queue', () => {
   });
 
   it('schedules deadline jobs', async () => {
-    const { scheduleDeadlineNotifications } = await import('../../src/modules/queue/notifications.queue.js');
+    const { scheduleDeadlineNotifications } =
+      await import('../../src/modules/queue/notifications.queue.js');
     const deadline = new Date(Date.now() + 48 * 3600_000);
     await scheduleDeadlineNotifications('task-1', deadline);
     expect(addMock).toHaveBeenCalled();

@@ -17,12 +17,16 @@ export interface RefreshTokenPayload {
 
 export function signAccessToken(userId: string, email: string): string {
   const payload: AccessTokenPayload = { sub: userId, email, type: 'access' };
-  return jwt.sign(payload, env.JWT_ACCESS_SECRET, { expiresIn: env.JWT_ACCESS_EXPIRES_IN as jwt.SignOptions['expiresIn'] });
+  return jwt.sign(payload, env.JWT_ACCESS_SECRET, {
+    expiresIn: env.JWT_ACCESS_EXPIRES_IN as jwt.SignOptions['expiresIn'],
+  });
 }
 
 export function signRefreshToken(userId: string, jti: string): string {
   const payload: RefreshTokenPayload = { sub: userId, jti, type: 'refresh' };
-  return jwt.sign(payload, env.JWT_REFRESH_SECRET, { expiresIn: env.JWT_REFRESH_EXPIRES_IN as jwt.SignOptions['expiresIn'] });
+  return jwt.sign(payload, env.JWT_REFRESH_SECRET, {
+    expiresIn: env.JWT_REFRESH_EXPIRES_IN as jwt.SignOptions['expiresIn'],
+  });
 }
 
 export function verifyAccessToken(token: string): AccessTokenPayload {

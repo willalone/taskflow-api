@@ -149,7 +149,11 @@ export class AuthService {
     });
 
     const resetUrl = `${env.APP_URL}/api/v1/auth/reset-password?token=${token}`;
-    await sendEmail(email, 'Reset your TaskFlow password', `<p><a href="${resetUrl}">Reset password</a></p>`);
+    await sendEmail(
+      email,
+      'Reset your TaskFlow password',
+      `<p><a href="${resetUrl}">Reset password</a></p>`,
+    );
     return { sent: true };
   }
 
